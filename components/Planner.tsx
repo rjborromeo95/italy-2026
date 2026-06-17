@@ -56,20 +56,47 @@ export default function Planner({ initialParticipants, configured }: Props) {
     return others;
   }, [participants, myId, myName, mySel]);
 
+  // Filter: which people the calendar is currently reflecting.
+  // null = everyone (default). A Set = only those ids.
+  const [includedIds, setIncludedIds] = useState<Set<string> | null>(null);
+  const isIncluded = (id: string) => includedIds === null || includedIds.has(id);
+
+  const filtered = useMemo(
+    () => effective.filter((p) => isIncluded(p.id)),
+    [effective, includedIds],
+  );
+  const filtering = includedIds !== null;
+
+  function togglePerson(id: string) {
+    setIncludedIds((prev) => {
+      const all = new Set(effective.map((p) => p.id));
+      const next = prev === null ? new Set(all) : new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      // Back to "everyone"? collapse to null.
+      if (next.size === all.size && [...all].every((x) => next.has(x))) return null;
+      return next;
+    });
+  }
+  function includeEveryone() { setIncludedIds(null); }
+
   const counts = useMemo(() => {
     const c: Record<string, number> = {};
-    for (const p of effective) for (const d of p.dates) c[d] = (c[d] ?? 0) + 1;
+    for (const p of filtered) for (const d of p.dates) c[d] = (c[d] ?? 0) + 1;
     return c;
-  }, [effective]);
+  }, [filtered]);
 
-  const total = useMemo(() => {
-    const others = participants.filter((p) => p.id !== myId).length;
-    const meEngaged = myName.trim() && mySel.size ? 1 : 0;
-    return Math.max(1, others + meEngaged);
-  }, [participants, myId, myName, mySel]);
+  const total = Math.max(1, filtered.length);
 
   const { max, runs } = useMemo(() => bestWindows(counts, TRIP.months), [counts]);
   const bestSet = useMemo(() => new Set(runs[0] ? runDates(runs[0]) : []), [runs]);
+
+  // Short description of the active filter, for the verdict card.
+  const filterLabel = useMemo(() => {
+    if (!filtering) return null;
+    if (filtered.length === 0) return "no-one";
+    if (filtered.length <= 2) return filtered.map((p) => firstName(p, myId)).join(" & ");
+    return `these ${filtered.length}`;
+  }, [filtering, filtered, myId]);
 
   const others = participants.filter((p) => p.id !== myId);
 
@@ -148,18 +175,23 @@ export default function Planner({ initialParticipants, configured }: Props) {
           so the answer to &ldquo;when?&rdquo; stops being an argument and starts being obvious.
         </p>
 
-        {max === 0 ? (
+        {filtered.length === 0 && filtering ? (
+          <div className="verdict empty">
+            <div className="eyebrow">Filtered</div>
+            <div className="vdate">No-one selected. Tap a name below to compare people.</div>
+          </div>
+        ) : max === 0 ? (
           <div className="verdict empty">
             <div className="eyebrow">Best date so far</div>
             <div className="vdate">Nothing yet — be the first to add your free days.</div>
           </div>
         ) : (
           <div className="verdict">
-            <div className="eyebrow">☀ Best date so far</div>
+            <div className="eyebrow">☀ {filterLabel ? `Best date for ${filterLabel}` : "Best date so far"}</div>
             <div className="vdate">{fmtRange(runs[0])}</div>
             <div className="meta">
               <b>{max} of {total}</b> can make {span(runs[0]) > 1 ? "every day of it" : "it"}
-              {max === total ? " — that's everyone! 🎉" : ""}
+              {max === total ? (filtering ? " — all of them! 🎉" : " — that's everyone! 🎉") : ""}
             </div>
             {runs.length > 1 && (
               <div className="alts">
@@ -188,6 +220,36 @@ export default function Planner({ initialParticipants, configured }: Props) {
         </button>
       </div>
 
+      {effective.length > 0 && (
+        <div className="filterbar">
+          <span className="flabel">Showing</span>
+          <button
+            className={`fchip all${!filtering ? " active" : ""}`}
+            aria-pressed={!filtering}
+            onClick={includeEveryone}
+          >
+            Everyone
+          </button>
+          {effective
+            .slice()
+            .sort((a, b) => firstName(a, myId).localeCompare(firstName(b, myId)))
+            .map((p) => {
+              const on = isIncluded(p.id);
+              return (
+                <button
+                  key={p.id}
+                  className={`fchip${on ? " active" : ""}`}
+                  aria-pressed={on}
+                  onClick={() => togglePerson(p.id)}
+                >
+                  <span className="fav">{firstName(p, myId)[0]?.toUpperCase()}</span>
+                  {firstName(p, myId)}
+                </button>
+              );
+            })}
+        </div>
+      )}
+
       <div className="legend">
         <span className="scale">
           <span>Nobody</span>
@@ -195,7 +257,7 @@ export default function Planner({ initialParticipants, configured }: Props) {
           <span className="sw" style={{ background: glowColor(0.34) }} />
           <span className="sw" style={{ background: glowColor(0.67) }} />
           <span className="sw" style={{ background: glowColor(1) }} />
-          <span>Everyone free</span>
+          <span>{filtering ? "All selected free" : "Everyone free"}</span>
         </span>
         <span className="mine"><span className="ring" /> = the days you picked</span>
       </div>
@@ -228,6 +290,11 @@ export default function Planner({ initialParticipants, configured }: Props) {
 function headline(text: string): string {
   // Italicise "all" if present, to match the design accent.
   return text.replace(/\ball\b/i, (m) => `<em>${m}</em>`);
+}
+
+function firstName(p: Participant, myId: string): string {
+  if (p.id === myId) return "You";
+  return p.name.split(" ")[0] || p.name;
 }
 
 type MonthProps = {
