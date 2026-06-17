@@ -136,6 +136,28 @@ body {
 .cell .sun { position: absolute; top: 2px; left: 4px; font-size: 10px; }
 .cell:focus-visible { outline: 3px solid var(--sea); outline-offset: 2px; }
 
+/* person filter */
+.filterbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 26px 0 16px; }
+.flabel { font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #90a6ad; margin-right: 2px; }
+.fchip {
+  font: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 6px 12px 6px 8px; border-radius: 999px;
+  border: 1px solid var(--line); background: #fff; color: #5c747e;
+  transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease, opacity 0.12s ease;
+}
+.fchip.all { padding: 6px 14px; }
+.fchip:hover { border-color: var(--sea); color: var(--sea-deep); }
+.fchip.active { background: var(--sea-deep); border-color: var(--sea-deep); color: #fff; }
+.fchip:not(.active) { opacity: 0.85; }
+.fchip:focus-visible { outline: 3px solid var(--sea); outline-offset: 2px; }
+.fav {
+  width: 20px; height: 20px; border-radius: 50%; flex: none;
+  display: grid; place-items: center; font-size: 10.5px; font-weight: 700;
+  background: var(--sun-2); color: #fff;
+}
+.fchip.active .fav { background: var(--sun-1); color: var(--sea-deep); }
+
 .footnote { margin-top: 26px; font-size: 12.5px; color: #7c919a; text-align: center; }
 
 /* toast */
