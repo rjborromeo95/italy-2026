@@ -100,3 +100,14 @@ export function glowColor(p: number): string {
   const light = 58 - p * 6;
   return `hsla(${hue}, 92%, ${light}%, ${a})`;
 }
+
+/** Group a person's dates into [{ label: "Jul 2026", days: [11,12,13] }]. */
+export function groupDatesByMonth(dates: string[]): { label: string; days: number[] }[] {
+  const by: Record<string, number[]> = {};
+  for (const s of [...dates].sort()) {
+    const d = new Date(s + "T00:00:00");
+    const label = `${MONTH_NAMES[d.getMonth()].slice(0, 3)} ${d.getFullYear()}`;
+    (by[label] ??= []).push(d.getDate());
+  }
+  return Object.entries(by).map(([label, days]) => ({ label, days }));
+}
